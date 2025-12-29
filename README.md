@@ -1,28 +1,16 @@
-# GetFood 🍱
+# getfood_new
 
-A food redistribution app connecting restaurants, NGOs, and volunteers.
+A new Flutter project.
 
-## Features
-- Real-time food donation posting
-- NGO acceptance & location setting
-- Volunteer pickup & delivery navigation
-- Google Maps integration
-- Firebase backend
+## Getting Started
 
-## Tech Stack
-- Flutter
-- Firebase Auth
-- Cloud Firestore
-- Google Maps API
+This project is a starting point for a Flutter application.
 
-## Google Technologies Used
-- Firebase
-- Google Maps Platform
-- Google Cloud
+A few resources to get you started if this is your first Flutter project:
 
-## Setup
-1. Clone repo
-2. Run `flutter pub get`
-3. Add Firebase config
-4. Run app
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
