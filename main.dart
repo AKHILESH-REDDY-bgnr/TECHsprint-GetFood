@@ -22,6 +22,201 @@ Color statusColor(String status) {
       return Colors.grey;
   }
 }
+/* ----------------open navigation---------------- */
+Future<void> openNavigation(
+  double? fromLat,
+  double? fromLng,
+  double? toLat,
+  double? toLng,
+) async {
+  if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+    debugPrint("Navigation failed: Null location values");
+    return;
+  }
+
+  final Uri googleMapsUri = Uri.parse(
+    "https://www.google.com/maps/dir/?api=1"
+    "&origin=$fromLat,$fromLng"
+    "&destination=$toLat,$toLng"
+    "&travelmode=driving",
+  );
+
+  if (!await canLaunchUrl(googleMapsUri)) {
+    debugPrint("Could not launch Google Maps");
+    return;
+  }
+
+  await launchUrl(
+    googleMapsUri,
+    mode: LaunchMode.externalApplication,
+  );
+}
+
+
+/* ---------------- DASHBOARD CARD ---------------- */
+
+class MealsSavedDashboard extends StatelessWidget {
+  const MealsSavedDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('donations')
+          .where('status', isEqualTo: 'Received')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        int mealsSaved = 0;
+
+for (var doc in snapshot.data!.docs) {
+  final int qty = doc['quantity'];
+
+  if (doc['status'] == 'Received') {
+    mealsSaved += qty;
+  }
+}
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          margin: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.restaurant,
+                    size: 40,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Meals Saved",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      mealsSaved.toString(),
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+/* ---------------- DASHBOARD WIDGET ---------------- */
+
+class DashboardWidget extends StatelessWidget {
+  const DashboardWidget({super.key});
+
+  Widget statCard(String title, IconData icon, Color color, String field, String equals) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('donations')
+          .where(field, isEqualTo: equals)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int count = snapshot.hasData ? snapshot.data!.docs.fold<int>(
+          0,
+          (sum, doc) => sum + (doc['quantity'] as int),
+        ) : 0;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "$count meals",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        const Text(
+          "📊 Impact Dashboard",
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 14),
+
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          children: [
+            statCard("Meals Saved", Icons.check_circle, Colors.green, 'status', 'Received'),
+            statCard("Available", Icons.restaurant, Colors.orange, 'status', 'Available'),
+            statCard("Accepted", Icons.volunteer_activism, Colors.blue, 'status', 'Accepted'),
+            statCard("Total Posts", Icons.food_bank, Colors.purple, 'status', 'Received'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 
 /* ---------------- MAIN ---------------- */
 
@@ -43,11 +238,26 @@ class FoodApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Food Redistribution App',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
-      ),
+     theme: ThemeData(
+  useMaterial3: true,
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: Colors.green,
+    primary: Colors.green.shade700,
+    secondary: Colors.green.shade400,
+  ),
+  scaffoldBackgroundColor: const Color(0xFFF3F7F5),
+  appBarTheme: const AppBarTheme(
+    backgroundColor: Colors.green,
+    foregroundColor: Colors.white,
+    elevation: 0,
+  ),
+  cardTheme: CardThemeData(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(18),
+    ),
+  ),
+),
       home: const AuthGate(),
     );
   }
@@ -123,10 +333,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+  padding: const EdgeInsets.all(20),
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
             const Icon(Icons.lock, size: 80, color: Colors.green),
             const SizedBox(height: 20),
             TextField(
@@ -198,17 +408,20 @@ class LoginScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      body: SingleChildScrollView(
+  padding: const EdgeInsets.all(20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
             const Icon(Icons.food_bank, size: 90, color: Colors.green),
             const SizedBox(height: 20),
             const Text(
               "GetFood",
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 30),
+            const SizedBox(height: 10),
+            const DashboardWidget(),
             const SizedBox(height: 30),
             roleCard(
               context,
@@ -251,28 +464,65 @@ class PickLocationScreen extends StatefulWidget {
 }
 
 class _PickLocationScreenState extends State<PickLocationScreen> {
-  LatLng selected = const LatLng(20.5937, 78.9629);
+  LatLng selected = const LatLng(20.5937, 78.9629); // India center
+  GoogleMapController? mapController;
+
+  Future<void> requestPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      await Geolocator.requestPermission();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    requestPermission();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Select Pickup Location")),
       body: GoogleMap(
-        initialCameraPosition:
-            CameraPosition(target: selected, zoom: 14),
+        mapType: MapType.normal,
+        initialCameraPosition: CameraPosition(
+          target: selected,
+          zoom: 15,
+        ),
+        onMapCreated: (controller) {
+          mapController = controller;
+        },
         markers: {
           Marker(
             markerId: const MarkerId("pickup"),
             position: selected,
             draggable: true,
-            onDragEnd: (pos) => setState(() => selected = pos),
+            onDragEnd: (pos) {
+              setState(() => selected = pos);
+            },
           ),
         },
-        onTap: (pos) => setState(() => selected = pos),
+        onTap: (pos) {
+          setState(() {
+            selected = pos;
+          });
+
+          mapController?.animateCamera(
+            CameraUpdate.newLatLng(pos),
+          );
+        },
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        zoomGesturesEnabled: true,
+        scrollGesturesEnabled: true,
+        rotateGesturesEnabled: true,
+        tiltGesturesEnabled: true,
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.check),
-        label: const Text("Confirm"),
+        label: const Text("Confirm Location"),
         onPressed: () => Navigator.pop(context, selected),
       ),
     );
@@ -357,6 +607,44 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     );
   }
 }
+/*---------NGO LOCATION PICKER---------*/
+class NGOLocationPicker extends StatefulWidget {
+  const NGOLocationPicker({super.key});
+
+  @override
+  State<NGOLocationPicker> createState() => _NGOLocationPickerState();
+}
+
+class _NGOLocationPickerState extends State<NGOLocationPicker> {
+  LatLng selected = const LatLng(20.5937, 78.9629); // India center
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Select NGO Location")),
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: selected,
+          zoom: 14,
+        ),
+        markers: {
+          Marker(
+            markerId: const MarkerId("ngo"),
+            position: selected,
+            draggable: true,
+            onDragEnd: (pos) => setState(() => selected = pos),
+          ),
+        },
+        onTap: (pos) => setState(() => selected = pos),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.check),
+        label: const Text("Confirm Location"),
+        onPressed: () => Navigator.pop(context, selected),
+      ),
+    );
+  }
+}
 
 /* ---------------- NGO ---------------- */
 
@@ -368,8 +656,7 @@ class NGOScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("NGO Dashboard")),
       body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance.collection('donations').snapshots(),
+        stream: FirebaseFirestore.instance.collection('donations').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -403,133 +690,72 @@ class NGOScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  trailing: doc['status'] == "Available"
-                      ? ElevatedButton(
+                  trailing: Builder(
+                    builder: (context) {
+                      final status = doc['status'];
+
+                      if (status == "Available") {
+                        return ElevatedButton(
                           child: const Text("Accept"),
-                          onPressed: () {
-                            doc.reference.update(
-                              {'status': 'Accepted'},
-                            );
+                          onPressed: () async {
+  final LatLng? ngoLoc = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const NGOLocationPicker(),
+    ),
+  );
+
+  if (ngoLoc == null) return;
+
+  await doc.reference.update({
+    'status': 'Accepted',
+    'ngoLocation': {
+      'lat': ngoLoc.latitude,
+      'lng': ngoLoc.longitude,
+                       },
+                      });
+
+                       ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text("Donation accepted & location set")),
+                          );
+                         },
+                        );
+                      }
+
+                      if (status == "Delivered") {
+                        return ElevatedButton.icon(
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text("Received"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            await doc.reference
+                                .update({'status': 'Received'});
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text("Donation accepted"),
-                              ),
+                                  content:
+                                      Text("Food marked as received")),
                             );
                           },
-                        )
-                      : const Icon(Icons.check_circle,
-                          color: Colors.green),
-                ),
-              );
-            }).toList(),
-          );
-        },
-      ),
-    );
-  }
-}
+                        );
+                      }
 
-/* ---------------- VOLUNTEER ---------------- */
+                      if (status == "Received") {
+                        return const Chip(
+                          label: Text("Received"),
+                          backgroundColor: Colors.green,
+                          labelStyle: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      }
 
-class VolunteerScreen extends StatefulWidget {
-  const VolunteerScreen({super.key});
-
-  @override
-  State<VolunteerScreen> createState() => _VolunteerScreenState();
-}
-
-class _VolunteerScreenState extends State<VolunteerScreen> {
-  StreamSubscription<Position>? positionStream;
-
-  @override
-  void initState() {
-    super.initState();
-    startTracking();
-  }
-
-  Future<void> startTracking() async {
-    bool serviceEnabled =
-        await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
-
-    LocationPermission permission =
-        await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever) return;
-
-    positionStream = Geolocator.getPositionStream(
-      locationSettings:
-          const LocationSettings(accuracy: LocationAccuracy.high),
-    ).listen((position) {
-      FirebaseFirestore.instance
-          .collection('volunteer')
-          .doc('live')
-          .set({
-        'lat': position.latitude,
-        'lng': position.longitude,
-      });
-    });
-  }
-
-  Future<void> openNavigation(double lat, double lng) async {
-    final uri = Uri.parse(
-      "https://www.google.com/maps/dir/?api=1&destination=$lat,$lng",
-    );
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    positionStream?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Volunteer Panel")),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('donations')
-            .where('status', isEqualTo: 'Accepted')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-                child: CircularProgressIndicator());
-          }
-
-          return ListView(
-            children: snapshot.data!.docs.map((doc) {
-              return Card(
-                margin: const EdgeInsets.all(10),
-                child: ListTile(
-                  title: Text(doc['food']),
-                  subtitle:
-                      Text("Meals: ${doc['quantity']}"),
-                  trailing: ElevatedButton(
-                    child: const Text("Deliver"),
-                    onPressed: () async {
-                      await openNavigation(
-                        doc['lat'],
-                        doc['lng'],
-                      );
-                      await doc.reference
-                          .update({'status': 'Delivered'});
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text("Delivery completed"),
-                        ),
+                      return const Icon(
+                        Icons.check_circle,
+                        color: Colors.blue,
                       );
                     },
                   ),
@@ -542,6 +768,155 @@ class _VolunteerScreenState extends State<VolunteerScreen> {
     );
   }
 }
+
+// ==================== VOLUNTEER ====================
+
+class VolunteerScreen extends StatefulWidget {
+  const VolunteerScreen({super.key});
+
+  @override
+  State<VolunteerScreen> createState() => _VolunteerScreenState();
+}
+
+class _VolunteerScreenState extends State<VolunteerScreen> {
+  Future<Position> getCurrentLocation() async {
+    await Geolocator.requestPermission();
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Volunteer Panel")),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('donations')
+            .where('status', whereIn: ['Accepted', 'Picked Up'])
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                "No deliveries available",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
+          }
+
+          return ListView(
+            children: snapshot.data!.docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final String status = data['status'] ?? '';
+
+              return Card(
+                margin: const EdgeInsets.all(12),
+                child: ListTile(
+                  title: Text(
+                    data['food'] ?? 'Food',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    "Meals: ${data['quantity'] ?? 0}",
+                  ),
+                  trailing: Builder(
+                    builder: (context) {
+                      // ================= PICK UP =================
+                      if (status == "Accepted") {
+                        return ElevatedButton(
+                          child: const Text("Pick Up Food"),
+                          onPressed: () async {
+                            final position =
+                                await getCurrentLocation();
+
+                            final double pickupLat = data['lat'];
+                            final double pickupLng = data['lng'];
+
+                            await openNavigation(
+                              position.latitude,
+                              position.longitude,
+                              pickupLat,
+                              pickupLng,
+                            );
+
+                            await doc.reference.update({
+                              'status': 'Picked Up',
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text("Navigate to pickup location"),
+                              ),
+                            );
+                          },
+                        );
+                      }
+
+                      // ================= DELIVER =================
+                      if (status == "Picked Up") {
+                        final ngoLocation =
+                            data['ngoLocation'] as Map<String, dynamic>?;
+
+                        if (ngoLocation == null) {
+                          return const Text(
+                            "NGO location not set",
+                            style: TextStyle(color: Colors.red),
+                          );
+                        }
+
+                        final double ngoLat = ngoLocation['lat'];
+                        final double ngoLng = ngoLocation['lng'];
+
+                        final double pickupLat = data['lat'];
+                        final double pickupLng = data['lng'];
+
+                        return ElevatedButton(
+                          child: const Text("Deliver to NGO"),
+                          onPressed: () async {
+                            await openNavigation(
+                              pickupLat,
+                              pickupLng,
+                              ngoLat,
+                              ngoLng,
+                            );
+
+                            await doc.reference.update({
+                              'status': 'Delivered',
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text("Navigate to NGO location"),
+                              ),
+                            );
+                          },
+                        );
+                      }
+
+                      return const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                      );
+                    },
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
 /* ---------------- DASHBOARD ---------------- */
 
 class DashboardScreen extends StatelessWidget {
@@ -562,28 +937,31 @@ class DashboardScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          int totalMeals = 0;
-          int deliveredMeals = 0;
+          int mealsSaved = 0;
+int deliveredMeals = 0;
 
-          for (var doc in snapshot.data!.docs) {
-            final int qty = doc['quantity'];
-            totalMeals += qty;
+for (var doc in snapshot.data!.docs) {
+  final int qty = doc['quantity'];
 
-            if (doc['status'] == 'Delivered') {
-              deliveredMeals += qty;
-            }
-          }
+  if (doc['status'] == 'Received') {
+    mealsSaved += qty;
+  }
+
+  if (doc['status'] == 'Delivered') {
+    deliveredMeals += qty;
+  }
+}
 
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
                 dashboardCard(
-                  title: "Total Meals Donated",
-                  value: totalMeals.toString(),
-                  icon: Icons.restaurant,
-                  color: Colors.orange,
-                ),
+  title: "Total Meals Donated",
+  value: mealsSaved.toString(),
+  icon: Icons.favorite,
+  color: Colors.green,
+),
                 const SizedBox(height: 20),
                 dashboardCard(
                   title: "Meals Successfully Delivered",
@@ -593,11 +971,11 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 dashboardCard(
-                  title: "Meals Yet To Be Delivered",
-                  value: (totalMeals - deliveredMeals).toString(),
-                  icon: Icons.pending,
-                  color: Colors.blue,
-                ),
+                  title: "Meals In Transit",
+                   value: deliveredMeals.toString(),
+                    icon: Icons.delivery_dining,
+                    color: Colors.orange,
+                 ),
               ],
             ),
           );
@@ -653,4 +1031,3 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
-
